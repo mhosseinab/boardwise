@@ -153,3 +153,49 @@ def test_invented_weight_does_not_false_positive_against_unrelated_pooled_number
     assert result.grounded is False
     assert result.stripped_claims == ["50 kg"]
     assert "50 kg" not in result.clean_answer
+
+
+def test_spelled_out_kilograms_claim_is_extracted_and_stripped_when_ungrounded() -> (
+    None
+):
+    # Regression: "999 kilograms" (spelled-out unit) must be extracted as a claim
+    # just like "999 kg" and, being absent from tool_results, must be stripped.
+    answer = "This board can support riders up to 999 kilograms."
+    result = validate_grounding(answer, [AQUARA_ATLAS])
+    assert result.grounded is False
+    assert result.stripped_claims == ["999 kilograms"]
+    assert "999 kilograms" not in result.clean_answer
+    assert result.clean_answer == "I don't have that spec in my catalog."
+
+
+def test_spelled_out_dollars_claim_is_extracted_and_stripped_when_ungrounded() -> None:
+    # Regression: "5000 dollars" (spelled-out unit, no $ sign) must be extracted as a
+    # claim just like "$5000" and, being absent from tool_results, must be stripped.
+    answer = "The premium bundle costs 5000 dollars."
+    result = validate_grounding(answer, [AQUARA_ATLAS])
+    assert result.grounded is False
+    assert result.stripped_claims == ["5000 dollars"]
+    assert "5000 dollars" not in result.clean_answer
+    assert result.clean_answer == "I don't have that spec in my catalog."
+
+
+def test_plural_no_space_kgs_claim_is_extracted_and_stripped_when_ungrounded() -> None:
+    # Regression: "999kgs" (plural, no space) must be extracted as a claim just like
+    # "999 kg" and, being absent from tool_results, must be stripped.
+    answer = "This board can support riders up to 999kgs."
+    result = validate_grounding(answer, [AQUARA_ATLAS])
+    assert result.grounded is False
+    assert result.stripped_claims == ["999kgs"]
+    assert "999kgs" not in result.clean_answer
+    assert result.clean_answer == "I don't have that spec in my catalog."
+
+
+def test_spelled_out_kilogram_claim_grounds_against_matching_pool_value() -> None:
+    # A correctly-grounded spelled-out claim must survive, proving the extracted
+    # numeric value (not just the unit text) is fed into the same matching logic
+    # as the abbreviated forms.
+    answer = "This board supports riders up to 100 kilograms."
+    result = validate_grounding(answer, [AQUARA_ATLAS])
+    assert result == GroundingResult(
+        clean_answer=answer, stripped_claims=[], grounded=True
+    )

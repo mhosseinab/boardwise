@@ -10,10 +10,12 @@ spec/number removed.
 
 1. **Claim extraction.** Scan the answer text with unit-anchored regexes for numbers
    that carry a recognized spec unit: `kg`, `lbs`/`lb`, `psi`, `ft`, `in`, feet+inches
-   (`12'0"`), `L` (liters), `$` (price), `%`. A bare number with no recognized unit
-   (e.g. "2 boards", an ordinal, a rider's age) is never extracted as a claim and is
-   therefore never touched — this is the allowlist for counts that are not product
-   specs.
+   (`12'0"`), `L` (liters), `$` (price), `%`. Spelled-out and plural-no-space unit
+   words are recognized too (`kilogram(s)`/`kgs`, `pound(s)`, `liter(s)`,
+   `dollar(s)`) so a claim phrased as "999 kilograms" or "999kgs" is extracted exactly
+   like its abbreviated form. A bare number with no recognized unit (e.g. "2 boards",
+   an ordinal, a rider's age) is never extracted as a claim and is therefore never
+   touched — this is the allowlist for counts that are not product specs.
 
 2. **Grounded-value pool.** `tool_results` (a list of dicts — raw tool-call return
    values, already JSON-ish) is walked recursively (including nested dicts/lists, e.g.
@@ -84,13 +86,14 @@ _DISCLAIMER = "I don't have that spec in my catalog."
 _CLAIM_PATTERN = re.compile(
     r"""
     (?P<ftin>\d+)'(?P<ftin_in>\d{1,2})"          # 12'0"
-    | \$(?P<price>\d{1,3}(?:,\d{3})*(?:\.\d+)?)  # $899 / $1,299.50
+    | \$(?P<price>\d+(?:,\d{3})*(?:\.\d+)?)  # $899 / $1,299.50 / $5000
+    | (?P<price_word>\d+(?:,\d{3})*(?:\.\d+)?)\s?dollars?\b  # 5000 dollars
     | (?P<psi>\d+(?:\.\d+)?)\s?psi\b
-    | (?P<kg>\d+(?:\.\d+)?)\s?kg\b
-    | (?P<lbs>\d+(?:\.\d+)?)\s?lbs?\b
+    | (?P<kg>\d+(?:\.\d+)?)\s?(?:kgs?|kilograms?)\b
+    | (?P<lbs>\d+(?:\.\d+)?)\s?(?:lbs?|pounds?)\b
     | (?P<ft>\d+(?:\.\d+)?)\s?ft\b
     | (?P<inch>\d+(?:\.\d+)?)\s?in\b
-    | (?P<liter>\d+(?:\.\d+)?)\s?[lL]\b
+    | (?P<liter>\d+(?:\.\d+)?)\s?(?:[lL]|liters?)\b
     | (?P<percent>\d+(?:\.\d+)?)\s?%
     """,
     re.VERBOSE | re.IGNORECASE,
@@ -182,6 +185,9 @@ def _extract_claims(
             claims.append(_Claim("ftin", feet + inches / 12.0, *span, raw))
         elif groups["price"] is not None:
             value = float(groups["price"].replace(",", ""))
+            claims.append(_Claim("price", value, *span, raw))
+        elif groups["price_word"] is not None:
+            value = float(groups["price_word"].replace(",", ""))
             claims.append(_Claim("price", value, *span, raw))
         elif groups["psi"] is not None:
             claims.append(_Claim("psi", float(groups["psi"]), *span, raw))
