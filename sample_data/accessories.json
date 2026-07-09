@@ -1,0 +1,163 @@
+{
+  "_note": "illustrative mock data",
+  "accessories": [
+    {
+      "id": "fin-001",
+      "type": "fin",
+      "brand": "Aquara",
+      "model": "TrailFin",
+      "fin_box": "US-box",
+      "price_usd": 29,
+      "is_mock": true
+    },
+    {
+      "id": "fin-002",
+      "type": "fin",
+      "brand": "Riptide",
+      "model": "RaceBlade",
+      "fin_box": "click-fit",
+      "price_usd": 39,
+      "is_mock": true
+    },
+    {
+      "id": "fin-003",
+      "type": "fin",
+      "brand": "Zephyr",
+      "model": "RiverRunner",
+      "fin_box": "US-box",
+      "price_usd": 25,
+      "is_mock": true
+    },
+    {
+      "id": "fin-004",
+      "type": "fin",
+      "brand": "Cascade",
+      "model": "TouringKeel",
+      "fin_box": "click-fit",
+      "price_usd": 34,
+      "is_mock": true
+    },
+    {
+      "id": "pump-001",
+      "type": "pump",
+      "brand": "Aquara",
+      "model": "DualStage Max",
+      "max_psi": 20,
+      "valve_type": "H3",
+      "dual_stage": true,
+      "price_usd": 79,
+      "is_mock": true
+    },
+    {
+      "id": "pump-002",
+      "type": "pump",
+      "brand": "Velocity",
+      "model": "Compact12",
+      "max_psi": 12,
+      "valve_type": "H3",
+      "dual_stage": false,
+      "price_usd": 39,
+      "is_mock": true
+    },
+    {
+      "id": "pump-003",
+      "type": "pump",
+      "brand": "Fjord",
+      "model": "ElectricFlow",
+      "max_psi": 20,
+      "valve_type": "H2",
+      "dual_stage": true,
+      "price_usd": 129,
+      "is_mock": true
+    },
+    {
+      "id": "leash-001",
+      "type": "leash",
+      "brand": "Aquara",
+      "model": "CoilPro 8ft",
+      "suited_board_types": ["touring", "racing", "all-around", "yoga"],
+      "length_ft": 8,
+      "style": "coiled",
+      "price_usd": 22,
+      "is_mock": true
+    },
+    {
+      "id": "leash-002",
+      "type": "leash",
+      "brand": "Riptide",
+      "model": "QuickRelease 6ft",
+      "suited_board_types": ["whitewater"],
+      "length_ft": 6,
+      "style": "straight",
+      "price_usd": 28,
+      "is_mock": true
+    },
+    {
+      "id": "leash-003",
+      "type": "leash",
+      "brand": "Zephyr",
+      "model": "CalfCoil 10ft",
+      "suited_board_types": ["touring", "racing"],
+      "length_ft": 10,
+      "style": "coiled",
+      "price_usd": 24,
+      "is_mock": true
+    },
+    {
+      "id": "paddle-001",
+      "type": "paddle",
+      "brand": "Aquara",
+      "model": "AllRounder",
+      "min_height_cm": 150,
+      "max_height_cm": 200,
+      "adjustable": true,
+      "price_usd": 89,
+      "is_mock": true
+    },
+    {
+      "id": "paddle-002",
+      "type": "paddle",
+      "brand": "Velocity",
+      "model": "RaceCarbon",
+      "min_height_cm": 175,
+      "max_height_cm": 200,
+      "adjustable": false,
+      "price_usd": 249,
+      "is_mock": true
+    },
+    {
+      "id": "paddle-003",
+      "type": "paddle",
+      "brand": "Cascade",
+      "model": "YouthFlex",
+      "min_height_cm": 120,
+      "max_height_cm": 160,
+      "adjustable": true,
+      "price_usd": 59,
+      "is_mock": true
+    }
+  ],
+  "compat_overrides": [
+    {
+      "accessory_id": "fin-002",
+      "board_id": "brd-001",
+      "compatible": false,
+      "reason": "fin-box mismatch: RaceBlade is click-fit, but the Aquara Horizon 11'0\" requires a US-box fin",
+      "caveats": []
+    },
+    {
+      "accessory_id": "pump-002",
+      "board_id": "brd-009",
+      "compatible": false,
+      "reason": "under-spec pump: Compact12 tops out at 12 PSI, below the Zephyr Cataract 8'0\"'s recommended 17 PSI",
+      "caveats": []
+    },
+    {
+      "accessory_id": "leash-003",
+      "board_id": "brd-007",
+      "compatible": false,
+      "reason": "wrong-use leash: coiled leashes create foot-entrapment risk in whitewater; use a quick-release straight leash instead",
+      "caveats": []
+    }
+  ]
+}
