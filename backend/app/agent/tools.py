@@ -316,6 +316,21 @@ def _to_pick(accessory: Accessory, rationale: str) -> AccessoryPick:
     )
 
 
+def _first_compatible(
+    session: Session, board: Board, candidates: list[Accessory]
+) -> tuple[Accessory, CompatibilityResult] | None:
+    """Return the first `candidates` entry (already price-then-id ordered)
+    whose `_evaluate_compatibility` verdict against `board` is `True` — this
+    is what actually applies seeded `CompatRule` overrides, so a candidate
+    that an override flips to incompatible is skipped, not selected.
+    """
+    for candidate in candidates:
+        result = _evaluate_compatibility(session, board, candidate)
+        if result.compatible:
+            return candidate, result
+    return None
+
+
 def recommend_setup(
     rider_profile: RiderProfile, database_url: str | None = None
 ) -> SetupBundle | None:
@@ -324,11 +339,14 @@ def recommend_setup(
     The board must match `skill_level` exactly, carry capacity
     (`max_rider_weight_kg`) at least `weight_kg`, fit within `budget_usd`
     when given, and match `use_case` (against `board_type` or any
-    `best_for` tag). Each accessory is chosen from the accessories that
-    pass `check_compatibility` against the chosen board (the paddle is
+    `best_for` tag). Each accessory is chosen, in ascending price-then-id
+    order, as the first candidate whose `_evaluate_compatibility` verdict
+    against the chosen board is `True` — the same helper `check_compatibility`
+    uses, so a seeded `CompatRule` override is consulted at selection time,
+    not just applied afterward for display (the paddle candidate list is
     additionally narrowed to `height_cm`, since a paddle's board-level
-    verdict is always compatible — see `_paddle_verdict`). Ties are broken
-    deterministically: lowest `price_usd`, then `id`.
+    verdict is always compatible absent an override — see `_paddle_verdict`).
+    Ties are broken deterministically: lowest `price_usd`, then `id`.
 
     Returns `None` if no board matches, or no accessory of some type is
     compatible with the chosen board.
@@ -359,61 +377,43 @@ def recommend_setup(
             return None
 
         height_cm = rider_profile["height_cm"]
-        paddle = (
-            session.execute(
-                select(Accessory)
-                .where(
-                    Accessory.type == "paddle",
-                    Accessory.min_height_cm <= height_cm,
-                    Accessory.max_height_cm >= height_cm,
-                )
-                .order_by(Accessory.price_usd, Accessory.id)
-            )
-            .scalars()
-            .first()
-        )
-        pump = (
-            session.execute(
-                select(Accessory)
-                .where(
-                    Accessory.type == "pump",
-                    Accessory.max_psi >= board.recommended_psi,
-                    Accessory.valve_type == board.valve_type,
-                )
-                .order_by(Accessory.price_usd, Accessory.id)
-            )
-            .scalars()
-            .first()
-        )
-        fin = (
-            session.execute(
-                select(Accessory)
-                .where(Accessory.type == "fin", Accessory.fin_box == board.fin_box)
-                .order_by(Accessory.price_usd, Accessory.id)
-            )
-            .scalars()
-            .first()
-        )
-        leash_candidates = (
-            session.execute(
-                select(Accessory)
-                .where(Accessory.type == "leash")
-                .order_by(Accessory.price_usd, Accessory.id)
-            )
-            .scalars()
-            .all()
-        )
-        leash = next(
-            (
-                a
-                for a in leash_candidates
-                if board.board_type in (a.suited_board_types or [])
-            ),
-            None,
-        )
 
-        if paddle is None or pump is None or fin is None or leash is None:
+        def _candidates(accessory_type: str) -> list[Accessory]:
+            return list(
+                session.execute(
+                    select(Accessory)
+                    .where(Accessory.type == accessory_type)
+                    .order_by(Accessory.price_usd, Accessory.id)
+                )
+                .scalars()
+                .all()
+            )
+
+        paddle_candidates = [
+            a
+            for a in _candidates("paddle")
+            if a.min_height_cm is not None
+            and a.max_height_cm is not None
+            and a.min_height_cm <= height_cm <= a.max_height_cm
+        ]
+
+        paddle_match = _first_compatible(session, board, paddle_candidates)
+        pump_match = _first_compatible(session, board, _candidates("pump"))
+        fin_match = _first_compatible(session, board, _candidates("fin"))
+        leash_match = _first_compatible(session, board, _candidates("leash"))
+
+        if (
+            paddle_match is None
+            or pump_match is None
+            or fin_match is None
+            or leash_match is None
+        ):
             return None
+
+        paddle, paddle_result = paddle_match
+        pump, pump_result = pump_match
+        fin, fin_result = fin_match
+        leash, leash_result = leash_match
 
         picks = {
             "paddle": (
@@ -437,10 +437,9 @@ def recommend_setup(
                 f"rated for {board.board_type} use",
             ),
         }
-        compatibility = [
-            _evaluate_compatibility(session, board, accessory)
-            for accessory, _ in picks.values()
-        ]
+        # Reuse the verdicts already computed during selection (they applied
+        # any seeded `CompatRule` override) rather than re-evaluating.
+        compatibility = [paddle_result, pump_result, fin_result, leash_result]
 
         return SetupBundle(
             board=BoardCard.model_validate(board),

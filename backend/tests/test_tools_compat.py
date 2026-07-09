@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 
 from app.agent.tools import check_compatibility, recommend_setup
+from app.db.models import CompatRule
 from app.db.seed import ACCESSORIES_PATH, seed
 from app.db.session import session_scope
 
@@ -216,6 +217,70 @@ def test_recommend_setup_deterministic_accessory_ties_break_by_price_then_id(
     assert bundle["leash"]["id"] == "leash-001"
     # pump-001 is the only pump matching brd-001's 13 PSI / H3 valve needs.
     assert bundle["pump"]["id"] == "pump-001"
+
+
+def test_recommend_setup_skips_accessory_flipped_incompatible_by_override(
+    tmp_path: Path,
+) -> None:
+    """A `CompatRule` override that flips a currently-True in-code verdict to
+    False must be consulted DURING accessory selection, not just applied
+    afterward for display — `recommend_setup` must not pick the flipped
+    accessory even though it is the cheapest in-code-compatible candidate.
+    """
+    db_url = _seeded_db_url(tmp_path)
+
+    # Sanity: without any override, brd-001 (US-box) + fin-003 (US-box, $25,
+    # cheapest matching fin) is in-code compatible and is exactly what
+    # `test_recommend_setup_deterministic_accessory_ties_break_by_price_then_id`
+    # asserts gets picked.
+    baseline = check_compatibility("brd-001", "fin-003", database_url=db_url)
+    assert baseline.compatible is True
+
+    # Seed an override flipping that True verdict to False, following the
+    # same `compat_rules` shape as `sample_data/accessories.json`'s
+    # `compat_overrides` (see `app.db.seed._compat_rule_from_json`).
+    with session_scope(db_url) as session:
+        session.add(
+            CompatRule(
+                board_id="brd-001",
+                accessory_id="fin-003",
+                compatible=False,
+                reason="test override: fin-003 recalled for brd-001",
+                caveats=[],
+                is_mock=True,
+            )
+        )
+
+    bundle = recommend_setup(
+        {
+            "weight_kg": 95,
+            "height_cm": 175,
+            "skill_level": "beginner",
+            "use_case": "touring",
+            "budget_usd": 700,
+        },
+        database_url=db_url,
+    )
+
+    assert bundle is not None
+    # fin-003 must not be selected now that it is overridden to incompatible
+    # for this board — the next cheapest in-code-compatible US-box fin
+    # (fin-001, $29) must be picked instead.
+    assert bundle["fin"]["id"] != "fin-003"
+    assert bundle["fin"]["id"] == "fin-001"
+    # The bundle's own compatibility verdicts must never contradict its picks.
+    assert all(c.compatible for c in bundle["compatibility"])
+    fin_result = next(
+        c for c in bundle["compatibility"] if c.accessory_id == bundle["fin"]["id"]
+    )
+    assert fin_result.compatible is True
+
+    # The override itself is still correctly reported as incompatible by
+    # `check_compatibility` (proving the override row was actually consulted,
+    # not merely a coincidence of in-code rules).
+    overridden = check_compatibility("brd-001", "fin-003", database_url=db_url)
+    assert overridden.compatible is False
+    assert overridden.reason == "test override: fin-003 recalled for brd-001"
 
 
 def test_recommend_setup_no_matching_board_returns_none(tmp_path: Path) -> None:
