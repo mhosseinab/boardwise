@@ -1,5 +1,6 @@
 import "@testing-library/jest-dom/vitest";
 
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import { createElement } from "react";
 import { describe, expect, it } from "vitest";
@@ -59,7 +60,18 @@ describe("ChatResponse contract mirror", () => {
 
 describe("App shell", () => {
   it("renders without crashing and shows the BoardWise name", () => {
-    render(createElement(App));
+    // S16 wires `App` to a TanStack Query mutation, so it now needs a
+    // `QueryClientProvider` ancestor (previously App had no query usage).
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    render(
+      createElement(
+        QueryClientProvider,
+        { client: queryClient },
+        createElement(App),
+      ),
+    );
 
     expect(
       screen.getByRole("heading", { name: "BoardWise" }),
