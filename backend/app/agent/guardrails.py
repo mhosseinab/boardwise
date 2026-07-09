@@ -70,6 +70,40 @@ spec/number removed.
    offset-based splicing — no answer is ever rebuilt by re-joining tokens.
 
 `grounded` is `True` iff nothing had to be stripped.
+
+## Refusal backstop (S10)
+
+RULE (project rule #4 / SPEC "Known risks" — "Refusal backstop can misfire"): domain
+refusal is **prompt-driven and backstopped by a deterministic classifier**, per SPEC
+"Backend requirements" item 4 and decision §4.10 in the plan doc. `is_in_domain` is a
+PURE function — no embeddings, no LLM/model call, no DB, no I/O — a heuristic combining
+SUP/gear vocabulary with question-shape patterns. **POLICY: when uncertain, return
+`False`** (prefer a false-refusal over letting an off-topic answer through) — this is
+the documented, accepted trade-off from the plan's risk R3.
+
+The in-domain gate is a set of **strong keywords** (`paddleboard`, `sup`, `fin`,
+`paddle`, `pump`, `leash`, `psi`, `board`/`boards`, board-type words like
+`whitewater`, `fin box`/`fin-box`, `valve`, and the fictional brand names
+`Aquara`/`Riptide`/`Zephyr`/`Cascade`/`Velocity`/`Fjord`) that are unambiguous enough
+in this domain to classify a message in-domain on their own — deliberately narrower
+than a second "question-shape" tier that was drafted and then rejected: gating
+generic terms ("capacity", "volume", "length", "setup", "recommend"...) on generic
+interrogative shape ("what is...?", "how...?") does not disambiguate *topic*, only
+sentence form — an off-topic question is still a question, so e.g. "what's the
+volume of a sphere?" would classify in-domain purely on "volume" + "what's...?".
+That is exactly the false-negative-on-refusal failure mode the POLICY forbids, so
+the design keeps a single, narrow, unambiguous-keyword gate instead (see
+`test_refusal.py`'s regression tests pinning generic weak-word-plus-question-shape
+messages to `False`).
+
+A separate jailbreak-pattern check (e.g. "ignore your instructions", "act as a...",
+"system prompt") short-circuits straight to `False` regardless of vocabulary, so a
+prompt-injection attempt can't ride a domain keyword into a bypass — this is the
+literal SPEC requirement ("a jailbreak can't drag it off-topic").
+
+`build_refusal()` returns the fixed, friendly redirect text used whenever
+`is_in_domain` (or the agent's own prompt-driven refusal) determines the turn is out
+of scope. Per SPEC item 4, a refusal runs **zero tools**.
 """
 
 from __future__ import annotations
@@ -271,3 +305,72 @@ def validate_grounding(answer: str, tool_results: list[dict]) -> GroundingResult
     return GroundingResult(
         clean_answer=clean_answer, stripped_claims=stripped_claims, grounded=False
     )
+
+
+# ---------------------------------------------------------------------------
+# Refusal backstop (S10) — see module docstring "Refusal backstop" section.
+# ---------------------------------------------------------------------------
+
+_JAILBREAK_PATTERN = re.compile(
+    r"""
+    ignore\s+(?:your|all|any|previous|prior)?\s*instructions
+    | disregard\s+(?:your|all|any|previous|prior)?\s*(?:instructions|the\s+above)
+    | forget\s+(?:your|all|any|previous|prior)?\s*instructions
+    | you\s+are\s+now\b
+    | pretend\s+(?:you\s+are|to\s+be)\b
+    | act\s+as\s+(?:a|an)\b
+    | system\s+prompt
+    | jailbreak
+    | reveal\s+your\s+(?:prompt|instructions|system)
+    """,
+    re.VERBOSE | re.IGNORECASE,
+)
+
+# Unambiguous in this domain — a single hit is enough to classify in-domain. See
+# the module docstring for why this stays a single narrow tier rather than adding
+# a second, generic-word-plus-question-shape tier.
+_DOMAIN_KEYWORDS = re.compile(
+    r"""
+    \b(
+        paddleboards?
+        | sup
+        | fins?
+        | paddles?
+        | pumps?
+        | leash(?:es)?
+        | psi
+        | boards?
+        | whitewater
+        | valve
+        | aquara | riptide | zephyr | cascade | velocity | fjord
+    )\b
+    | fin[- ]?box
+    """,
+    re.VERBOSE | re.IGNORECASE,
+)
+
+_REFUSAL_TEXT = (
+    "I'm your paddleboard gear assistant, so I can't help with that one. "
+    "I'd love to help you find the right board, fin, paddle, pump, or leash "
+    "instead — ask me anything about SUP gear!"
+)
+
+
+def is_in_domain(message: str) -> bool:
+    """Deterministic heuristic: is `message` in-domain (SUP/paddleboard gear)?
+
+    Pure function: no embeddings, no model call, no I/O. POLICY: uncertain cases
+    return `False` (prefer a false-refusal over an off-topic answer — see module
+    docstring). A jailbreak-shaped message is refused regardless of vocabulary.
+    """
+    text = message.strip()
+    if not text:
+        return False
+    if _JAILBREAK_PATTERN.search(text):
+        return False
+    return bool(_DOMAIN_KEYWORDS.search(text))
+
+
+def build_refusal() -> str:
+    """The fixed, friendly redirect text for an out-of-domain / refused turn."""
+    return _REFUSAL_TEXT
