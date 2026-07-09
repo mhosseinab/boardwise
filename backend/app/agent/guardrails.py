@@ -11,9 +11,11 @@ spec/number removed.
 1. **Claim extraction.** Scan the answer text with unit-anchored regexes for numbers
    that carry a recognized spec unit: `kg`, `lbs`/`lb`, `psi`, `ft`, `in`, feet+inches
    (`12'0"`), `L` (liters), `$` (price), `%`. Spelled-out and plural-no-space unit
-   words are recognized too (`kilogram(s)`/`kgs`, `pound(s)`, `liter(s)`,
-   `dollar(s)`) so a claim phrased as "999 kilograms" or "999kgs" is extracted exactly
-   like its abbreviated form. A bare number with no recognized unit (e.g. "2 boards",
+   words are recognized too (`kilogram(s)`/`kgs`, `pound(s)`, `liter(s)`/`litre(s)`,
+   `dollar(s)`, `feet`/`foot`, `inch(es)`, `percent`) so a claim phrased as "999
+   kilograms", "999kgs", "12 feet", "3.5 inches", "50 percent", or "150 litres" is
+   extracted exactly like its abbreviated form. A bare number with no recognized unit
+   (e.g. "2 boards",
    an ordinal, a rider's age) is never extracted as a claim and is therefore never
    touched — this is the allowlist for counts that are not product specs.
 
@@ -91,10 +93,10 @@ _CLAIM_PATTERN = re.compile(
     | (?P<psi>\d+(?:\.\d+)?)\s?psi\b
     | (?P<kg>\d+(?:\.\d+)?)\s?(?:kgs?|kilograms?)\b
     | (?P<lbs>\d+(?:\.\d+)?)\s?(?:lbs?|pounds?)\b
-    | (?P<ft>\d+(?:\.\d+)?)\s?ft\b
-    | (?P<inch>\d+(?:\.\d+)?)\s?in\b
-    | (?P<liter>\d+(?:\.\d+)?)\s?(?:[lL]|liters?)\b
-    | (?P<percent>\d+(?:\.\d+)?)\s?%
+    | (?P<ft>\d+(?:\.\d+)?)\s?(?:ft|feet|foot)\b
+    | (?P<inch>\d+(?:\.\d+)?)\s?(?:in|inch(?:es)?)\b
+    | (?P<liter>\d+(?:\.\d+)?)\s?(?:[lL]|liters?|litres?)\b
+    | (?P<percent>\d+(?:\.\d+)?)\s?(?:%|percent\b)
     """,
     re.VERBOSE | re.IGNORECASE,
 )

@@ -199,3 +199,58 @@ def test_spelled_out_kilogram_claim_grounds_against_matching_pool_value() -> Non
     assert result == GroundingResult(
         clean_answer=answer, stripped_claims=[], grounded=True
     )
+
+
+def test_spelled_out_feet_claim_is_extracted_and_grounds_against_length_ft() -> None:
+    # Regression: "12 feet" (spelled-out ft unit) must be extracted as a claim just
+    # like "12 ft"/"12'0\"" and, matching the pooled length_ft, must be grounded.
+    answer = "This board measures 12 feet from nose to tail."
+    result = validate_grounding(answer, [AQUARA_ATLAS])
+    assert result == GroundingResult(
+        clean_answer=answer, stripped_claims=[], grounded=True
+    )
+
+
+def test_spelled_out_inches_claim_is_extracted_and_stripped_when_ungrounded() -> None:
+    # Regression: "3.5 inches" (spelled-out in unit) must be extracted as a claim
+    # just like "3.5 in" and, being absent from tool_results, must be stripped.
+    answer = "The fin box protrudes 3.5 inches from the hull."
+    result = validate_grounding(answer, [AQUARA_ATLAS])
+    assert result.grounded is False
+    assert result.stripped_claims == ["3.5 inches"]
+    assert "3.5 inches" not in result.clean_answer
+    assert result.clean_answer == "I don't have that spec in my catalog."
+
+
+def test_spelled_out_percent_claim_is_extracted_and_stripped_when_ungrounded() -> None:
+    # Regression: "50 percent" (spelled-out % unit) must be extracted as a claim just
+    # like "50%" and, being absent from tool_results, must be stripped. `%` is the
+    # module's own "core risk" exact-match category, so this is the highest-severity
+    # case of the spelled-out-unit bypass.
+    answer = "This board is on sale for 50 percent off."
+    result = validate_grounding(answer, [AQUARA_ATLAS])
+    assert result.grounded is False
+    assert result.stripped_claims == ["50 percent"]
+    assert "50 percent" not in result.clean_answer
+    assert result.clean_answer == "I don't have that spec in my catalog."
+
+
+def test_mixed_case_spelled_out_percent_claim_is_still_extracted() -> None:
+    # Regression: unit words are matched case-insensitively, same as every other
+    # spelled-out unit in this pattern.
+    answer = "This board is on sale for 50 PERCENT off."
+    result = validate_grounding(answer, [AQUARA_ATLAS])
+    assert result.grounded is False
+    assert result.stripped_claims == ["50 PERCENT"]
+    assert result.clean_answer == "I don't have that spec in my catalog."
+
+
+def test_spelled_out_litres_claim_grounds_via_rounding_tolerance() -> None:
+    # Regression: UK spelling "litres" must be extracted as a claim just like
+    # "liters"/"L" and, being within rounding tolerance of the pooled volume_l, must
+    # be grounded.
+    answer = "The tank volume is about 150 litres."
+    result = validate_grounding(answer, [AQUARA_ATLAS])
+    assert result == GroundingResult(
+        clean_answer=answer, stripped_claims=[], grounded=True
+    )
