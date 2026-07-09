@@ -18,7 +18,11 @@
       "valve_type": "H3",
       "board_weight_kg": 9.8,
       "price_usd": 649,
-      "best_for": ["flatwater cruising", "long distance", "stability"],
+      "best_for": [
+        "flatwater cruising",
+        "long distance",
+        "stability"
+      ],
       "image_url": "/assets/placeholders/touring.svg",
       "is_mock": true
     },
@@ -39,7 +43,11 @@
       "valve_type": "H3",
       "board_weight_kg": 10.5,
       "price_usd": 749,
-      "best_for": ["touring", "speed", "flatwater"],
+      "best_for": [
+        "touring",
+        "speed",
+        "flatwater"
+      ],
       "image_url": "/assets/placeholders/touring.svg",
       "is_mock": true
     },
@@ -60,7 +68,11 @@
       "valve_type": "H3",
       "board_weight_kg": 10.9,
       "price_usd": 899,
-      "best_for": ["expedition touring", "speed", "displacement hull"],
+      "best_for": [
+        "expedition touring",
+        "speed",
+        "displacement hull"
+      ],
       "image_url": "/assets/placeholders/touring.svg",
       "is_mock": true
     },
@@ -81,7 +93,11 @@
       "valve_type": "H3",
       "board_weight_kg": 9.5,
       "price_usd": 599,
-      "best_for": ["yoga", "stability", "flatwater"],
+      "best_for": [
+        "yoga",
+        "stability",
+        "flatwater"
+      ],
       "image_url": "/assets/placeholders/yoga.svg",
       "is_mock": true
     },
@@ -102,7 +118,11 @@
       "valve_type": "H3",
       "board_weight_kg": 8.9,
       "price_usd": 679,
-      "best_for": ["yoga", "balance training", "pilates"],
+      "best_for": [
+        "yoga",
+        "balance training",
+        "pilates"
+      ],
       "image_url": "/assets/placeholders/yoga.svg",
       "is_mock": true
     },
@@ -123,7 +143,10 @@
       "valve_type": "H3",
       "board_weight_kg": 8.2,
       "price_usd": 749,
-      "best_for": ["advanced yoga flows", "light packability"],
+      "best_for": [
+        "advanced yoga flows",
+        "light packability"
+      ],
       "image_url": "/assets/placeholders/yoga.svg",
       "is_mock": true
     },
@@ -144,7 +167,11 @@
       "valve_type": "H2",
       "board_weight_kg": 8.6,
       "price_usd": 629,
-      "best_for": ["river running", "stability", "beginners"],
+      "best_for": [
+        "river running",
+        "stability",
+        "beginners"
+      ],
       "image_url": "/assets/placeholders/whitewater.svg",
       "is_mock": true
     },
@@ -165,7 +192,10 @@
       "valve_type": "H2",
       "board_weight_kg": 8.9,
       "price_usd": 699,
-      "best_for": ["class II-III rapids", "river surfing"],
+      "best_for": [
+        "class II-III rapids",
+        "river surfing"
+      ],
       "image_url": "/assets/placeholders/whitewater.svg",
       "is_mock": true
     },
@@ -186,7 +216,10 @@
       "valve_type": "H2",
       "board_weight_kg": 8.3,
       "price_usd": 799,
-      "best_for": ["class IV rapids", "technical river lines"],
+      "best_for": [
+        "class IV rapids",
+        "technical river lines"
+      ],
       "image_url": "/assets/placeholders/whitewater.svg",
       "is_mock": true
     },
@@ -207,7 +240,10 @@
       "valve_type": "H3",
       "board_weight_kg": 9.9,
       "price_usd": 749,
-      "best_for": ["entry-level racing", "fitness paddling"],
+      "best_for": [
+        "entry-level racing",
+        "fitness paddling"
+      ],
       "image_url": "/assets/placeholders/racing.svg",
       "is_mock": true
     },
@@ -228,7 +264,10 @@
       "valve_type": "H3",
       "board_weight_kg": 11.2,
       "price_usd": 999,
-      "best_for": ["long-distance racing", "displacement hull speed"],
+      "best_for": [
+        "long-distance racing",
+        "displacement hull speed"
+      ],
       "image_url": "/assets/placeholders/racing.svg",
       "is_mock": true
     },
@@ -249,7 +288,10 @@
       "valve_type": "H3",
       "board_weight_kg": 10.8,
       "price_usd": 1299,
-      "best_for": ["competitive racing", "narrow hull speed"],
+      "best_for": [
+        "competitive racing",
+        "narrow hull speed"
+      ],
       "image_url": "/assets/placeholders/racing.svg",
       "is_mock": true
     },
@@ -270,7 +312,11 @@
       "valve_type": "H3",
       "board_weight_kg": 9.6,
       "price_usd": 599,
-      "best_for": ["all-around cruising", "first board", "family paddling"],
+      "best_for": [
+        "all-around cruising",
+        "first board",
+        "family paddling"
+      ],
       "image_url": "/assets/placeholders/all-around.svg",
       "is_mock": true
     },
@@ -291,7 +337,11 @@
       "valve_type": "H3",
       "board_weight_kg": 9.3,
       "price_usd": 679,
-      "best_for": ["versatile paddling", "light touring", "surf-ish play"],
+      "best_for": [
+        "versatile paddling",
+        "light touring",
+        "surf-ish play"
+      ],
       "image_url": "/assets/placeholders/all-around.svg",
       "is_mock": true
     },
@@ -312,7 +362,10 @@
       "valve_type": "H3",
       "board_weight_kg": 9.7,
       "price_usd": 749,
-      "best_for": ["performance all-around", "surf and tour"],
+      "best_for": [
+        "performance all-around",
+        "surf and tour"
+      ],
       "image_url": "/assets/placeholders/all-around.svg",
       "is_mock": true
     }

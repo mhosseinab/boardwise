@@ -135,6 +135,10 @@ def test_at_least_three_compat_overrides(accessories_data: dict[str, Any]) -> No
     for override in overrides:
         assert override["compatible"] is False
         assert override["reason"]
+        assert override["is_mock"] is True, (
+            f"compat_override {override.get('accessory_id')}/"
+            f"{override.get('board_id')} is not is_mock"
+        )
 
 
 @pytest.mark.parametrize("brand", REAL_SUP_BRANDS)

@@ -143,21 +143,24 @@
       "board_id": "brd-001",
       "compatible": false,
       "reason": "fin-box mismatch: RaceBlade is click-fit, but the Aquara Horizon 11'0\" requires a US-box fin",
-      "caveats": []
+      "caveats": [],
+      "is_mock": true
     },
     {
       "accessory_id": "pump-002",
       "board_id": "brd-009",
       "compatible": false,
       "reason": "under-spec pump: Compact12 tops out at 12 PSI, below the Zephyr Cataract 8'0\"'s recommended 17 PSI",
-      "caveats": []
+      "caveats": [],
+      "is_mock": true
     },
     {
       "accessory_id": "leash-003",
       "board_id": "brd-007",
       "compatible": false,
       "reason": "wrong-use leash: coiled leashes create foot-entrapment risk in whitewater; use a quick-release straight leash instead",
-      "caveats": []
+      "caveats": [],
+      "is_mock": true
     }
   ]
 }
