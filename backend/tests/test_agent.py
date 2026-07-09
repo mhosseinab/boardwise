@@ -16,7 +16,7 @@ from typing import Any
 import pytest
 from langchain_core.messages import AIMessage
 
-from app.agent.agent import run_agent
+from app.agent.agent import build_default_model, run_agent
 from app.agent.tools import get_board
 from app.db.seed import BOARDS_PATH, seed
 from app.db.session import session_scope
@@ -110,6 +110,41 @@ class _ForeverChatModel:
         return self.bound
 
 
+class _ManyToolCallsInOneRoundModel:
+    """A model that requests a large number of tool calls (all targeting an
+    unknown tool name) in a single `AIMessage`, to exercise the bound on
+    total tool-call executions per turn — not just model round-trips.
+    """
+
+    def __init__(self, calls_per_round: int) -> None:
+        self.invoke_count = 0
+        self._calls_per_round = calls_per_round
+
+    def invoke(self, _messages: list[Any]) -> AIMessage:
+        self.invoke_count += 1
+        return AIMessage(
+            content="",
+            tool_calls=[
+                {
+                    "name": "not_a_real_tool",
+                    "args": {},
+                    "id": f"call_{self.invoke_count}_{index}",
+                }
+                for index in range(self._calls_per_round)
+            ],
+        )
+
+
+class _ManyToolCallsChatModel:
+    def __init__(self, calls_per_round: int) -> None:
+        self._calls_per_round = calls_per_round
+        self.bound: _ManyToolCallsInOneRoundModel | None = None
+
+    def bind_tools(self, _tools: list[Any]) -> _ManyToolCallsInOneRoundModel:
+        self.bound = _ManyToolCallsInOneRoundModel(self._calls_per_round)
+        return self.bound
+
+
 # --- (a) a transcript calling get_board then answering ---------------------
 
 
@@ -183,6 +218,41 @@ def test_forever_tool_calls_stop_at_env_configured_cap(
     assert len(result["tool_calls"]) == 2
 
 
+# --- (b2) a single round requesting far more tool calls than the cap -------
+
+
+def test_many_tool_calls_in_single_round_bounded() -> None:
+    """A model that returns 20 tool_calls in one `AIMessage` must not be
+    able to bypass `MAX_TOOL_ITERATIONS` — the reviewer's constructed
+    bypass (unbounded inner-loop execution within a single outer-loop
+    round). Total executed tool calls across the whole turn must not
+    exceed the cap, and the flood must not trigger a second model
+    round-trip either.
+    """
+    model = _ManyToolCallsChatModel(calls_per_round=20)
+
+    result = run_agent("Flood me with tool calls.", history=[], model=model)
+
+    assert model.bound is not None
+    assert model.bound.invoke_count == 1
+    assert len(result["tool_calls"]) == 6
+    assert len(result["tool_results"]) == 6
+    assert all(call.name == "not_a_real_tool" for call in result["tool_calls"])
+
+
+def test_many_tool_calls_in_single_round_bounded_env_configured_cap(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("MAX_TOOL_ITERATIONS", "3")
+    model = _ManyToolCallsChatModel(calls_per_round=20)
+
+    result = run_agent("Flood me with tool calls.", history=[], model=model)
+
+    assert model.bound is not None
+    assert model.bound.invoke_count == 1
+    assert len(result["tool_calls"]) == 3
+
+
 # --- adversarial tool-call args: exercise the except-path, not just the
 # unknown-tool-name guard --------------------------------------------------
 
@@ -215,3 +285,11 @@ def test_malformed_tool_args_produce_error_result_and_loop_continues() -> None:
     assert "error" in result["tool_results"][0]
     assert model.bound is not None
     assert model.bound.invoke_count == 2
+
+
+# --- build_default_model fails closed instead of hardcoding a vendor model -
+
+
+def test_build_default_model_raises_without_llm_model_env() -> None:
+    with pytest.raises(RuntimeError, match="LLM_MODEL"):
+        build_default_model()

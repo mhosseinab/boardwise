@@ -213,13 +213,21 @@ def build_tools() -> list[StructuredTool]:
 def build_default_model() -> ChatOpenAI:
     """Build the OpenAI-compatible chat model from env (rule: no hardcoded
     provider/key). Never called by this module's own tests — only reachable
-    when `run_agent` is invoked without an injected `model`.
+    when `run_agent` is invoked without an injected `model`. Fails closed
+    (raises) rather than silently defaulting to a specific vendor's model
+    name when `LLM_MODEL` is unset.
     """
     raw_api_key = os.environ.get("LLM_API_KEY")
+    model_name = os.environ.get("LLM_MODEL")
+    if not model_name:
+        raise RuntimeError(
+            "LLM_MODEL environment variable must be set to build the "
+            "default chat model (rule: no hardcoded provider/model)."
+        )
     return ChatOpenAI(
         base_url=os.environ.get("LLM_BASE_URL"),
         api_key=SecretStr(raw_api_key) if raw_api_key is not None else None,
-        model=os.environ.get("LLM_MODEL", "gpt-4o-mini"),
+        model=model_name,
         temperature=0,
     )
 
@@ -258,10 +266,16 @@ def run_agent(
     Each iteration is one model call: if it requests tool calls, every
     requested call is executed and recorded before the next iteration; the
     loop stops as soon as a model response requests no further tool calls,
-    or after `MAX_TOOL_ITERATIONS` (env, default 6) iterations, whichever
-    comes first — so a model that requests tool calls forever cannot hang or
-    exceed the cap. No grounding/refusal composition here (S12 composes
-    them from this function's output).
+    or after `MAX_TOOL_ITERATIONS` (env, default 6) model round-trips,
+    whichever comes first. The same cap also bounds the TOTAL number of
+    tool calls executed across the whole turn (not just model round-trips):
+    a single model response can request many tool calls at once, so the
+    inner per-round dispatch loop stops as soon as the running total hits
+    the cap, truncating any remaining calls in that round and preventing a
+    further model round-trip — so a model that requests tool calls forever,
+    or floods a single round with tool calls, cannot hang or cause unbounded
+    work. No grounding/refusal composition here (S12 composes them from
+    this function's output).
     """
     chat_model = model if model is not None else build_default_model()
     tools = build_tools()
@@ -276,14 +290,18 @@ def run_agent(
     tool_calls: list[ToolCall] = []
     tool_results: list[Any] = []
     ai_message: BaseMessage | None = None
+    max_tool_calls = _max_tool_iterations()
+    total_tool_calls = 0
 
-    for _iteration in range(_max_tool_iterations()):
+    for _iteration in range(max_tool_calls):
         ai_message = model_with_tools.invoke(messages)
         messages.append(ai_message)
         requested = list(getattr(ai_message, "tool_calls", None) or [])
         if not requested:
             break
         for call in requested:
+            if total_tool_calls >= max_tool_calls:
+                break
             name = call["name"]
             args = dict(call.get("args") or {})
             call_id = call.get("id") or name
@@ -307,11 +325,14 @@ def run_agent(
                 )
             )
             tool_results.append(result)
+            total_tool_calls += 1
             messages.append(
                 ToolMessage(
                     content=json.dumps(result, default=str), tool_call_id=call_id
                 )
             )
+        if total_tool_calls >= max_tool_calls:
+            break
 
     answer_text = ""
     if ai_message is not None:
