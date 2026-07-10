@@ -1,11 +1,13 @@
 // Chat pane wired up in S16; the catalog side panel and persistent
-// mock-data banner are added by S17.
+// mock-data banner are wired in by S17.
 import { useMutation } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 
+import CatalogPanel from "./components/CatalogPanel";
 import ChatPane, { type ChatExchange } from "./components/ChatPane";
 import Composer from "./components/Composer";
 import ExamplePrompts from "./components/ExamplePrompts";
+import MockDataBanner from "./components/MockDataBanner";
 import { postChat } from "./lib/api";
 
 function App() {
@@ -68,14 +70,18 @@ function App() {
           </h1>
         </div>
       </header>
-      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-10">
-        {exchanges.length === 0 ? (
-          <ExamplePrompts onSelect={submitMessage} />
-        ) : (
-          <ChatPane exchanges={exchanges} />
-        )}
-        <Composer onSubmit={submitMessage} disabled={mutation.isPending} />
-      </main>
+      <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-6 py-10 lg:flex-row lg:items-start">
+        <main className="flex w-full flex-1 flex-col gap-6">
+          {exchanges.length === 0 ? (
+            <ExamplePrompts onSelect={submitMessage} />
+          ) : (
+            <ChatPane exchanges={exchanges} />
+          )}
+          <Composer onSubmit={submitMessage} disabled={mutation.isPending} />
+        </main>
+        <CatalogPanel onAskAboutBoard={submitMessage} />
+      </div>
+      <MockDataBanner />
     </div>
   );
 }
