@@ -10,4 +10,4 @@ test:
 	cd backend && pytest -q
 
 eval:
-	@echo "eval harness lands in S19" && exit 1
+	python3 evals/run_evals.py --mode offline
