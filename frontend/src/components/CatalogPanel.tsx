@@ -109,7 +109,6 @@ function CatalogPanel({ onAskAboutBoard }: CatalogPanelProps) {
           Min rider capacity (kg)
           <input
             type="number"
-            aria-label="Minimum rider capacity (kg)"
             value={minCapacityKg}
             onChange={(event) => setMinCapacityKg(event.target.value)}
             className="rounded-card border border-border px-2 py-1 text-sm text-slate-800"
@@ -119,7 +118,6 @@ function CatalogPanel({ onAskAboutBoard }: CatalogPanelProps) {
           Max price (USD)
           <input
             type="number"
-            aria-label="Maximum price (USD)"
             value={maxPriceUsd}
             onChange={(event) => setMaxPriceUsd(event.target.value)}
             className="rounded-card border border-border px-2 py-1 text-sm text-slate-800"
