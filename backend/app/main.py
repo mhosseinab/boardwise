@@ -1,14 +1,16 @@
-"""BoardWise FastAPI app (S7): the browsable-catalog endpoints.
+"""BoardWise FastAPI app (S7): the browsable-catalog endpoints. S12 adds
+`POST /api/chat`, wiring the S12 pipeline (backstop -> agent -> grounding ->
+assembled response) into this same app object.
 
 Rule (typed contracts): every response here is a frozen `app.schemas` model
 (or a plain dict for `/api/health`) — the server never emits markup, and
 these handlers never touch the DB directly, only via the S5 lookup tools
-(`app.agent.tools.get_board` / `search_boards`).
+(`app.agent.tools.get_board` / `search_boards`) or, for `/api/chat`, the S12
+pipeline.
 
-CARRY-FORWARD for S12/S13 (they extend this same `app` object next, adding
-`/api/chat` and `/api/metrics` — this step intentionally adds neither): keep
-new routes as plain `@app.get`/`@app.post` handlers here, reusing the
-`lifespan` startup seed hook already wired up below.
+CARRY-FORWARD for S13 (adds `/api/metrics` next): keep new routes as plain
+`@app.get`/`@app.post` handlers here, reusing the `lifespan` startup seed
+hook already wired up below.
 """
 
 from collections.abc import AsyncIterator
@@ -16,10 +18,11 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Query
 
+from app.agent.pipeline import handle_chat
 from app.agent.tools import BoardSearchFilters, get_board, search_boards
 from app.db.seed import seed
 from app.db.session import session_scope
-from app.schemas import BoardCard
+from app.schemas import BoardCard, ChatRequest, ChatResponse
 
 
 @asynccontextmanager
@@ -73,3 +76,14 @@ def get_board_by_id(board_id: str) -> BoardCard:
     if card is None:
         raise HTTPException(status_code=404, detail="board not found")
     return card
+
+
+@app.post("/api/chat", response_model=ChatResponse)
+def chat(request: ChatRequest) -> ChatResponse:
+    """The S12 pipeline entry point. `model` is left unset here (the
+    injection point for tests lives in `handle_chat`/`run_agent`, per
+    decision §4.9) so this route builds the real, env-configured model only
+    when actually invoked — never during the offline test suite, which
+    calls `handle_chat` directly with a fake model.
+    """
+    return handle_chat(request)
