@@ -1,0 +1,47 @@
+# BoardWise Docker Compose (S20).
+#
+# `docker compose up` from a clean checkout, with NO `.env` present, must
+# yield a working, seeded app: web on :3006 (nginx, static React bundle,
+# proxies /api -> api:8006) and api on :8006 (FastAPI/Uvicorn, seeds SQLite
+# idempotently on boot). All env vars below default to safe, key-less values
+# (`${VAR:-default}` interpolation) so no secrets are baked into the images
+# and no live LLM call is possible from `compose up` alone — the catalog and
+# UI work without a key; chat requires one supplied at runtime via a local
+# `.env` (see .env.example), never committed.
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    ports:
+      - "8006:8006"
+    environment:
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
+      LLM_TEMPERATURE: ${LLM_TEMPERATURE:-0}
+      MAX_TOOL_ITERATIONS: ${MAX_TOOL_ITERATIONS:-6}
+      DATABASE_URL: ${DATABASE_URL:-sqlite:///./boardwise.sqlite3}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8006/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  web:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    ports:
+      - "3006:3006"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3006/"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
