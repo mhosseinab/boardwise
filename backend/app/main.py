@@ -1,20 +1,20 @@
 """BoardWise FastAPI app (S7): the browsable-catalog endpoints. S12 adds
 `POST /api/chat`, wiring the S12 pipeline (backstop -> agent -> grounding ->
-assembled response) into this same app object.
+assembled response) into this same app object. S13 adds `GET /api/metrics`
+and wraps the `/api/chat` handler with the `app.observability` request
+recorder (one structured JSON log line + an in-process metrics registry).
 
 Rule (typed contracts): every response here is a frozen `app.schemas` model
-(or a plain dict for `/api/health`) — the server never emits markup, and
-these handlers never touch the DB directly, only via the S5 lookup tools
-(`app.agent.tools.get_board` / `search_boards`) or, for `/api/chat`, the S12
-pipeline.
-
-CARRY-FORWARD for S13 (adds `/api/metrics` next): keep new routes as plain
-`@app.get`/`@app.post` handlers here, reusing the `lifespan` startup seed
-hook already wired up below.
+(or a plain dict for `/api/health`/`/api/metrics`) — the server never emits
+markup, and these handlers never touch the DB directly, only via the S5
+lookup tools (`app.agent.tools.get_board` / `search_boards`) or, for
+`/api/chat`, the S12 pipeline.
 """
 
+import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query
 
@@ -22,6 +22,7 @@ from app.agent.pipeline import handle_chat
 from app.agent.tools import BoardSearchFilters, get_board, search_boards
 from app.db.seed import seed
 from app.db.session import session_scope
+from app.observability import metrics_registry, new_request_id, record_chat_request
 from app.schemas import BoardCard, ChatRequest, ChatResponse
 
 
@@ -85,5 +86,29 @@ def chat(request: ChatRequest) -> ChatResponse:
     decision §4.9) so this route builds the real, env-configured model only
     when actually invoked — never during the offline test suite, which
     calls `handle_chat` directly with a fake model.
+
+    S13: wraps the call with the `app.observability` recorder — one
+    structured JSON log line plus a `metrics_registry` update per request,
+    driven only by wall-clock latency and the fields already on the
+    returned `ChatResponse`.
     """
-    return handle_chat(request)
+    request_id = new_request_id()
+    started = time.perf_counter()
+    response = handle_chat(request)
+    latency_ms = int((time.perf_counter() - started) * 1000)
+    record_chat_request(
+        request_id=request_id,
+        latency_ms=latency_ms,
+        tool_names=[call.name for call in response.tools_used],
+        refused=response.refused,
+        prompt_version=response.prompt_version,
+    )
+    return response
+
+
+@app.get("/api/metrics")
+def metrics() -> dict[str, Any]:
+    """`GET /api/metrics` (SPEC "Backend requirements" item 6): request
+    count, p50/p95 latency, refusal rate, avg tools/turn over every
+    `/api/chat` request this process has served."""
+    return metrics_registry.snapshot()
